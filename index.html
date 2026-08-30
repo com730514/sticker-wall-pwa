@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>怪獸貼紙牆</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="images/icon-192.png">
+<link rel="apple-touch-icon" href="images/icon-192.png">
+<meta name="theme-color" content="#191A2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="貼紙牆">
+<style>
+  :root{
+    --navy:#191A2E;
+    --cream:#FDF6EA;
+    --white:#FFFFFF;
+    --peach:#F5A661;
+    --coral:#FF6B5E;
+    --purple:#6B5ECF;
+    --row-bg:#FBF2E2;
+    --muted:#9A9584;
+    --disabled-bg:#EDEAE2;
+    --disabled-text:#ACA89B;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{ overflow-x:hidden; }
+  body{
+    font-family:'PingFang TC','Microsoft JhengHei','Segoe UI',sans-serif;
+    background:var(--cream);
+    color:var(--navy);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .page-blob-tl{ position:absolute; top:0; left:0; width:130px; height:88px; z-index:0; pointer-events:none; opacity:.9; }
+  .sparkle{ position:absolute; z-index:0; pointer-events:none; opacity:.5; }
+
+  .wrap{ max-width:430px; margin:0 auto; padding:26px 18px 70px; position:relative; z-index:1; }
+
+  header{ text-align:center; margin-bottom:20px; }
+  .title{ font-size:22px; font-weight:800; color:var(--navy); }
+  .subtitle{ margin-top:6px; font-size:13px; color:#A79A87; font-weight:500; }
+
+  .name-row{ display:flex; gap:10px; margin-bottom:22px; }
+  .name-input-wrap{ flex:1; position:relative; height:56px; }
+  .name-input-wrap .cat-icon{ position:absolute; left:16px; top:50%; transform:translateY(-50%); width:24px; height:24px; pointer-events:none; }
+  .name-input-wrap input{
+    width:100%; height:100%;
+    border:1.5px solid #ECE6D8;
+    border-radius:18px;
+    padding:0 16px 0 48px;
+    font-size:14px; font-weight:500;
+    background:var(--white); color:var(--navy);
+  }
+  .name-input-wrap input::placeholder{ color:var(--muted); }
+  .name-input-wrap input:focus{ outline:none; border-color:var(--peach); }
+  .save-btn{
+    height:56px; border:none; border-radius:18px;
+    background:var(--peach); color:var(--navy);
+    font-weight:700; font-size:14px; padding:0 24px; cursor:pointer;
+  }
+  .save-btn:active{ transform:scale(.97); }
+
+  .card{
+    position:relative;
+    background:var(--white);
+    border-radius:26px;
+    margin-bottom:20px;
+    box-shadow:0 4px 18px rgba(25,26,46,.06);
+  }
+  .card-header{
+    background:var(--navy);
+    border-radius:26px 26px 0 0;
+    padding:18px 20px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .card-header h2{ color:#fff; font-size:16.5px; font-weight:800; }
+  .plain-head{ padding:20px 20px 4px; display:flex; align-items:center; gap:10px; }
+  .plain-head h2{ font-size:16.5px; font-weight:800; color:var(--navy); }
+  .pill{ background:var(--coral); color:#fff; font-size:11px; font-weight:700; padding:5px 11px; border-radius:999px; }
+  .peek-blob{ position:absolute; top:-15px; right:-6px; width:72px; height:62px; z-index:2; pointer-events:none; }
+  .card-body{ padding:16px 18px 20px; }
+
+  .task-list{ display:flex; flex-direction:column; gap:9px; }
+  .task{
+    display:flex; align-items:center; gap:12px;
+    padding:9px 10px;
+    background:var(--row-bg);
+    border-radius:20px;
+  }
+  .task-icon{ width:52px; height:52px; border-radius:50%; border:2px solid var(--navy); flex-shrink:0; overflow:hidden; }
+  .task-icon svg{ width:100%; height:100%; display:block; }
+  .task .label{ flex:1; font-size:13.5px; font-weight:700; color:var(--navy); }
+  .stamp-btn{
+    border:none; border-radius:14px;
+    font-weight:700; font-size:12px; padding:9px 15px;
+    cursor:pointer; white-space:nowrap;
+    background:var(--peach); color:var(--navy);
+  }
+  .stamp-btn:disabled{ background:var(--disabled-bg); color:var(--disabled-text); cursor:default; }
+  .stamp-btn:not(:disabled):active{ transform:scale(.94); }
+  .remove-btn{ border:none; background:none; color:var(--muted); font-size:14px; cursor:pointer; padding:0 2px; }
+
+  .add-task{ display:flex; gap:9px; margin-top:12px; }
+  .add-task-input-wrap{ flex:1; position:relative; height:50px; }
+  .add-task-input-wrap .plus-icon{
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    width:22px; height:22px; border-radius:50%;
+    background:var(--navy); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:700; pointer-events:none;
+  }
+  .add-task-input-wrap input{
+    width:100%; height:100%;
+    border:1.5px dashed #DCD3BE;
+    border-radius:16px;
+    padding:0 14px 0 44px;
+    font-size:12.5px; background:transparent; color:var(--navy);
+  }
+  .add-task-input-wrap input::placeholder{ color:#C7BEA9; }
+  .add-btn{
+    height:50px; border:none; border-radius:14px;
+    background:var(--purple); color:#fff;
+    font-weight:700; font-size:12.5px; padding:0 18px; cursor:pointer;
+  }
+  .add-btn:active{ transform:scale(.96); }
+
+  .progress-row{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:11px; }
+  .progress-row .label{ font-size:13px; font-weight:600; color:#8B8578; }
+  .progress-row .count{ font-weight:800; font-size:14.5px; color:var(--navy); }
+  .progress-track{
+    height:15px; border-radius:10px;
+    background:var(--cream); overflow:hidden; position:relative;
+  }
+  .progress-fill{
+    height:100%; border-radius:10px;
+    background-color:var(--peach);
+    background-image:radial-gradient(circle, rgba(255,255,255,.55) 2px, transparent 2px);
+    background-size:10px 10px;
+    transition:width .35s ease;
+  }
+  .threshold-row{ display:flex; align-items:center; gap:8px; margin-top:15px; font-size:12.5px; font-weight:600; color:#8B8578; }
+  .threshold-row input{
+    width:48px; border:1.5px solid #ECE6D8; border-radius:10px;
+    padding:5px 6px; font-weight:800; text-align:center; color:var(--navy);
+  }
+  .redeem-btn{
+    width:100%; margin-top:16px; border:none; border-radius:16px;
+    font-weight:700; font-size:14px; padding:14px; cursor:pointer;
+    background:var(--disabled-bg); color:var(--disabled-text);
+  }
+  .redeem-btn.ready{ background:var(--peach); color:var(--navy); }
+  .redeem-btn:not(:disabled):active{ transform:scale(.98); }
+
+  .sticker-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:9px; }
+  .sticker-slot{
+    aspect-ratio:1; border-radius:16px;
+    background:var(--white); border:1.5px dashed #E7E0D0;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .sticker-slot.filled{ border:2px solid var(--navy); animation:pop .35s ease; position:relative; }
+  .sticker-del{
+    position:absolute; top:2px; right:2px; z-index:2;
+    width:20px; height:20px; border-radius:50%;
+    background:rgba(25,26,46,.85); color:#fff; border:none;
+    font-size:11px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity .15s ease;
+  }
+  .sticker-slot.filled:hover .sticker-del,
+  .sticker-slot.filled:active .sticker-del{ opacity:1; }
+  @media (hover:none){ .sticker-del{ opacity:.55; } }
+  .sticker-who{
+    position:absolute; bottom:2px; left:2px; z-index:2;
+    width:16px; height:16px; border-radius:50%;
+    color:#fff; font-size:9px; font-weight:800; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+  .sticker-slot svg{ width:72%; height:72%; }
+  .sticker-slot img{
+    width:78%;
+    height:78%;
+    object-fit:contain;
+    display:block;
+  }
+  @keyframes pop{
+    0%{ transform:scale(.7); opacity:0; }
+    70%{ transform:scale(1.06); }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  .empty-hint{ text-align:center; font-size:12px; color:var(--muted); padding:16px 0; }
+  .history-toggle{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px; border:none; background:none; cursor:pointer;
+    font-size:16px; font-weight:800; color:var(--navy); font-family:inherit;
+  }
+  .history-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 0; border-bottom:1px solid #F0EAD8; font-size:13px;
+  }
+  .history-row:last-child{ border-bottom:none; }
+  .history-date{ color:var(--navy); font-weight:700; }
+  .history-count{ color:var(--muted); }
+  .history-empty{ text-align:center; font-size:12px; color:var(--muted); padding:8px 0 16px; }
+  .export-link{
+    display:block; width:100%; text-align:center;
+    background:none; border:none; color:var(--muted); font-size:12px;
+    padding:10px 0 24px; cursor:pointer; font-family:inherit;
+  }
+
+  .toast{
+    position:fixed; left:50%; bottom:30px; transform:translate(-50%, 20px);
+    background:var(--navy); color:#fff; font-weight:600; font-size:13px;
+    padding:12px 22px; border-radius:30px; opacity:0;
+    transition:all .3s ease; pointer-events:none;
+    box-shadow:0 10px 24px rgba(25,26,46,.25); white-space:nowrap; z-index:100;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* ---- 蓋章儀式 ---- */
+  .stamp-overlay{
+    position:fixed; inset:0;
+    background:radial-gradient(circle at 50% 40%, #262844 0%, #191A2E 55%, #101120 100%);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:50;
+  }
+  .stamp-overlay.show{ opacity:1; pointer-events:auto; }
+  .overlay-close{
+    position:absolute; top:24px; right:24px; width:38px; height:38px; border-radius:50%;
+    border:1.5px solid rgba(245,166,97,.6); background:transparent; color:var(--peach);
+    font-size:16px; font-weight:600; cursor:pointer;
+  }
+  .stamp-card{ text-align:center; }
+  .stamp-hint{ color:#F3EFE6; font-weight:700; font-size:16.5px; margin-bottom:8px; }
+  .scan-text{
+    height:20px; margin-bottom:18px; font-weight:700; font-size:12.5px; letter-spacing:3px;
+    opacity:0; transition:opacity .2s ease; color:var(--peach);
+  }
+  .scan-text.active{ opacity:.9; animation:pulseText 1s ease-in-out infinite; }
+  @keyframes pulseText{ 0%,100%{ opacity:.6; } 50%{ opacity:1; } }
+  .scan-text .dots span{ animation:dotBlink 1.2s infinite; opacity:0; }
+  .scan-text .dots span:nth-child(2){ animation-delay:.2s; }
+  .scan-text .dots span:nth-child(3){ animation-delay:.4s; }
+  @keyframes dotBlink{ 0%,100%{ opacity:0; } 50%{ opacity:1; } }
+  .stamp-pad-wrap{ position:relative; width:min(64vw, 260px); height:min(78vw, 320px); margin:0 auto; }
+  .pad-glow{
+    position:absolute; inset:-15%; border-radius:50%;
+    background:radial-gradient(circle, rgba(245,166,97,.28) 0%, rgba(245,166,97,.06) 55%, transparent 75%);
+    filter:blur(4px); pointer-events:none;
+  }
+  .hud-ring{
+    position:absolute; inset:6%; border-radius:50%;
+    border:1.5px dashed rgba(245,166,97,.28); pointer-events:none; animation:ringSpin 20s linear infinite;
+    transition:opacity .3s ease;
+  }
+  .hud-ring.ring2{ inset:-2%; border-color:rgba(245,166,97,.14); border-style:dotted; animation:ringSpin 28s linear infinite reverse; }
+  @keyframes ringSpin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+  .stamp-pad-wrap.pressing .hud-ring{ border-color:rgba(245,166,97,.8); }
+  .stamp-pad-wrap.landed .hud-ring{ opacity:0; }
+  .stamp-pad-wrap.landed .pad-glow{ opacity:0; transition:opacity .3s ease; }
+  .stamp-pad{ position:absolute; inset:0; touch-action:none; cursor:pointer; user-select:none; -webkit-user-select:none; transition:transform .15s ease; }
+  .stamp-badge{
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:130%; height:130%; object-fit:contain;
+    opacity:0;
+    pointer-events:none; z-index:3;
+    filter:drop-shadow(0 14px 26px rgba(0,0,0,.45));
+  }
+  .stamp-badge.show{
+    animation:stampPress .42s cubic-bezier(.5,0,.15,1) .25s forwards;
+    transform-origin:center;
+  }
+  @keyframes stampPress{
+    0%{ opacity:0; transform:translate(-50%,-50%) translateY(-85%) scale(1.12); }
+    55%{ opacity:1; transform:translate(-50%,-50%) translateY(0%) scale(0.95); }
+    72%{ transform:translate(-50%,-50%) translateY(0%) scale(1.05); }
+    86%{ transform:translate(-50%,-50%) translateY(0%) scale(0.99); }
+    100%{ opacity:1; transform:translate(-50%,-50%) translateY(0) scale(1); }
+  }
+  .stamp-impact{
+    position:absolute; inset:0; margin:auto;
+    width:130%; height:130%; border-radius:50%;
+    pointer-events:none; z-index:2;
+    opacity:0;
+  }
+  .stamp-impact.show{
+    animation:impactFlash .4s ease .62s forwards;
+  }
+  @keyframes impactFlash{
+    0%{ opacity:.55; background:radial-gradient(circle, rgba(245,166,97,.5) 0%, transparent 70%); transform:scale(.7); }
+    100%{ opacity:0; background:radial-gradient(circle, rgba(245,166,97,.5) 0%, transparent 70%); transform:scale(1.3); }
+  }
+  .ripple-ring{
+    position:absolute; inset:0; margin:auto;
+    width:100%; height:100%; border-radius:50%;
+    border:3px solid rgba(255,255,255,.8);
+    pointer-events:none; z-index:2;
+    opacity:0;
+  }
+  .ripple-ring.show{
+    animation:rippleOut .55s cubic-bezier(.15,.7,.4,1) .6s forwards;
+  }
+  @keyframes rippleOut{
+    0%{ opacity:.75; transform:scale(.55); border-width:5px; }
+    100%{ opacity:0; transform:scale(1.35); border-width:0px; }
+  }
+  .stamp-card.shake{ animation:cardShake .3s ease .6s; }
+  @keyframes cardShake{
+    0%,100%{ transform:translate(0,0); }
+    20%{ transform:translate(-3px,1px); }
+    40%{ transform:translate(3px,-1px); }
+    60%{ transform:translate(-2px,1px); }
+    80%{ transform:translate(2px,0); }
+  }
+  .stamp-pad svg{ width:100%; height:100%; display:block; overflow:visible; transition:opacity .25s ease; }
+  .stamp-pad.pressing{ transform:scale(0.97); }
+  .stamp-pad.done svg{ opacity:0; }
+  .stamp-pad.done{ animation:stampDone .45s ease; }
+  @keyframes stampDone{
+    0%{ transform:scale(0.97); }
+    50%{ transform:scale(1.1); filter:drop-shadow(0 0 18px rgba(245,166,97,.7)); }
+    100%{ transform:scale(1); }
+  }
+  #scanBeam{ opacity:.5; }
+  .stamp-pad.pressing #scanBeam{ opacity:.95; animation:scanSweep 1.5s ease-in-out infinite; }
+  @keyframes scanSweep{ 0%{ transform:translateY(0); } 100%{ transform:translateY(304px); } }
+  #ridgeGroup{ filter:drop-shadow(0 0 4px rgba(245,166,97,.5)); }
+.identity-overlay{
+  position:fixed; inset:0; z-index:200;
+  background:rgba(25,26,46,.92);
+  display:none; align-items:center; justify-content:center;
+  padding:24px;
+}
+.identity-overlay.show{ display:flex; }
+.identity-card{
+  background:var(--cream); border-radius:24px; padding:28px 22px;
+  max-width:340px; width:100%; text-align:center;
+}
+.identity-title{ font-size:20px; font-weight:800; color:var(--navy); margin-bottom:6px; }
+.identity-sub{ font-size:13px; color:var(--muted); margin-bottom:20px; }
+.identity-options{ display:flex; flex-direction:column; gap:10px; }
+.identity-btn{
+  padding:14px; border-radius:16px; border:2px solid #E7E0D0;
+  background:var(--white); font-size:16px; font-weight:700; color:var(--navy);
+  cursor:pointer;
+}
+.identity-btn:active{ transform:scale(.97); background:var(--peach); }
+.identity-badge{
+  position:fixed; top:14px; left:14px; z-index:50;
+  background:var(--white); border-radius:999px; padding:6px 12px;
+  font-size:12px; font-weight:700; color:var(--navy);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  display:flex; align-items:center; gap:4px; cursor:pointer;
+}
+.sticker-grid.unlimited{ display:flex; flex-wrap:wrap; gap:9px; }
+.sticker-grid.unlimited .sticker-slot{ width:calc(20% - 7.2px); aspect-ratio:1; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="identity-overlay" id="identityOverlay">
+    <div class="identity-card">
+      <p class="identity-title">你是誰呀？</p>
+      <p class="identity-sub">選一次就好，這支手機會記住</p>
+      <div class="identity-options">
+        <button class="identity-btn" data-id="dad">👨 爸爸</button>
+        <button class="identity-btn" data-id="mom">👩 媽媽</button>
+        <button class="identity-btn" data-id="child">🧒 小朋友</button>
+      </div>
+    </div>
+  </div>
+  <div class="identity-badge" id="identityBadge" style="display:none;"></div>
+  <svg class="page-blob-tl" viewBox="0 0 130 88" preserveAspectRatio="none">
+    <path d="M0,0 L85,0 C100,6 106,20 96,32 C86,44 90,58 72,64 C54,70 34,60 28,44 C24,32 8,36 0,26 Z" fill="#191A2E"/>
+  </svg>
+  <svg class="sparkle" style="top:120px; left:14px; width:16px; height:16px;" viewBox="0 0 20 20"><path d="M10,0 L12,8 L20,10 L12,12 L10,20 L8,12 L0,10 L8,8 Z" fill="#191A2E"/></svg>
+  <svg class="sparkle" style="top:340px; right:20px; width:14px; height:14px;" viewBox="0 0 20 20"><path d="M10,0 L12,8 L20,10 L12,12 L10,20 L8,12 L0,10 L8,8 Z" fill="#191A2E"/></svg>
+  <svg class="sparkle" style="bottom:120px; left:24px; width:12px; height:12px;" viewBox="0 0 20 20"><path d="M10,0 L12,8 L20,10 L12,12 L10,20 L8,12 L0,10 L8,8 Z" fill="#191A2E"/></svg>
+  <svg class="sparkle" style="bottom:60px; right:40px; width:16px; height:16px;" viewBox="0 0 20 20"><path d="M10,0 L12,8 L20,10 L12,12 L10,20 L8,12 L0,10 L8,8 Z" fill="#F5A661"/></svg>
+
+<div class="wrap">
+  <header>
+    <div class="title">怪獸貼紙牆</div>
+    <div class="subtitle">完成任務，蓋一枚屬於今天的印記</div>
+  </header>
+
+  <div class="name-row">
+    <div class="name-input-wrap">
+      <img class="cat-icon" src="data:image/png;base64,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" alt="">
+      <input id="kidName" type="text" placeholder="孩子的名字">
+    </div>
+    <button class="save-btn" id="saveNameBtn">儲存</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>今日任務</h2>
+      <span class="pill" id="todayBadge"></span>
+    </div>
+    <svg class="peek-blob" viewBox="0 0 100 90">
+      <path d="M92,0 L98,4 C102,14 96,26 84,30 C72,34 62,26 62,16 C62,8 68,2 76,0 Z" fill="#191A2E"/>
+      <ellipse cx="78" cy="14" rx="4" ry="6.5" fill="#fff" transform="rotate(-20 78 14)"/>
+      <ellipse cx="89" cy="12" rx="3.6" ry="6" fill="#fff" transform="rotate(-12 89 12)"/>
+    </svg>
+    <div class="card-body">
+      <div class="task-list" id="taskList"></div>
+      <div class="add-task">
+        <div class="add-task-input-wrap">
+          <span class="plus-icon">＋</span>
+          <input id="newTaskInput" type="text" placeholder="新增任務，例如：自己刷牙">
+        </div>
+        <button class="add-btn" id="addTaskBtn">新增</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="plain-head"><h2>集點進度</h2></div>
+    <svg class="peek-blob" style="top:-9px; right:-5px; width:64px; height:56px;" viewBox="0 0 100 90">
+      <path d="M92,0 L98,4 C102,14 96,26 84,30 C72,34 62,26 62,16 C62,8 68,2 76,0 Z" fill="#191A2E"/>
+      <ellipse cx="78" cy="14" rx="4" ry="6.5" fill="#fff" transform="rotate(-20 78 14)"/>
+      <ellipse cx="89" cy="12" rx="3.6" ry="6" fill="#fff" transform="rotate(-12 89 12)"/>
+    </svg>
+    <div class="card-body">
+      <div class="progress-row">
+        <span class="label">目前貼紙</span>
+        <span class="count"><span id="stickerCount">0</span> / <span id="thresholdShow">10</span></span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="threshold-row">
+        集滿 <input id="thresholdInput" type="number" min="1" value="10"> 張兌換獎勵
+      </div>
+      <button class="redeem-btn" id="redeemBtn" disabled>🎁 兌換獎勵</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="plain-head"><h2>貼紙牆</h2></div>
+    <svg class="peek-blob" style="top:-9px; right:-5px; width:64px; height:56px;" viewBox="0 0 100 90">
+      <path d="M92,0 L98,4 C102,14 96,26 84,30 C72,34 62,26 62,16 C62,8 68,2 76,0 Z" fill="#191A2E"/>
+      <ellipse cx="78" cy="14" rx="4" ry="6.5" fill="#fff" transform="rotate(-20 78 14)"/>
+      <ellipse cx="89" cy="12" rx="3.6" ry="6" fill="#fff" transform="rotate(-12 89 12)"/>
+    </svg>
+    <div class="card-body">
+      <div class="sticker-grid unlimited" id="stickerGrid"></div>
+      <div class="empty-hint" id="emptyHint">還沒有貼紙，完成任務來蓋第一隻怪獸吧！</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="history-toggle" id="historyToggle">
+      <span>🎁 兌換紀錄</span>
+      <span id="historyChevron">▾</span>
+    </button>
+    <div class="card-body" id="historyBody" style="display:none;">
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <button class="export-link" id="exportBtn">⬇ 匯出資料備份</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="stamp-overlay" id="stampOverlay">
+  <button class="overlay-close" id="stampOverlayClose">✕</button>
+  <div class="stamp-card" id="stampCard">
+    <p class="stamp-hint" id="stampHint">按住指紋不放</p>
+    <p class="scan-text" id="scanText">指紋掃描中<span class="dots"><span>.</span><span>.</span><span>.</span></span></p>
+    <div class="stamp-pad-wrap" id="stampPadWrap">
+      <div class="pad-glow"></div>
+      <div class="hud-ring"></div>
+      <div class="hud-ring ring2"></div>
+      <img class="stamp-badge" id="stampBadge" alt="cat stamp">
+      <div class="stamp-impact" id="stampImpact"></div>
+      <div class="ripple-ring" id="rippleRing"></div>
+      <div class="stamp-pad" id="stampPad">
+        <svg viewBox="0 0 240 264" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <clipPath id="fpClip">
+              <ellipse cx="120" cy="132" rx="104" ry="126"/>
+            </clipPath>
+            <linearGradient id="scanGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#F5A661" stop-opacity="0"/>
+              <stop offset="50%" stop-color="#FFF3E4" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#F5A661" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="fillGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FFF3E4" stop-opacity="0.9"/>
+              <stop offset="35%" stop-color="#F5A661" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#F5A661" stop-opacity="0.1"/>
+            </linearGradient>
+          </defs>
+          <g clip-path="url(#fpClip)">
+            <rect id="inkFillRect" x="0" y="264" width="240" height="0" fill="url(#fillGrad)"/>
+          </g>
+          <g id="ridgeGroup" clip-path="url(#fpClip)" stroke="#F5A661" stroke-width="2.5" fill="none" stroke-linecap="round">
+            <path d="M 63.4,220.4 A 92.0,112.2 0 1,1 176.6,220.4"/>
+            <path d="M 69.5,209.8 A 82.0,100.0 0 1,1 170.5,209.8"/>
+            <path d="M 75.7,199.2 A 72.0,87.8 0 1,1 164.3,199.2"/>
+            <path d="M 81.8,188.6 A 62.0,75.6 0 1,1 158.2,188.6"/>
+            <path d="M 88.0,178.0 A 52.0,63.4 0 1,1 152.0,178.0"/>
+            <path d="M 94.1,167.4 A 42.0,51.2 0 1,1 145.9,167.4"/>
+            <path d="M 99.7,157.8 A 33.0,40.3 0 1,1 140.3,157.8"/>
+            <path d="M 111.0,152.3 A 24.0,29.3 0 1,1 129.0,152.3"/>
+            <path d="M 114.4,141.3 A 15.0,18.3 0 1,1 125.6,141.3"/>
+          </g>
+          <ellipse cx="120" cy="132" rx="104" ry="126" fill="none" stroke="rgba(245,166,97,.3)" stroke-width="1.5"/>
+          <g clip-path="url(#fpClip)">
+            <rect id="scanBeam" x="0" y="-40" width="240" height="5" fill="url(#scanGrad)"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- 任務圖示：直接使用參考圖裁切的真實貓咪頭像 ----
+  const AVATAR_IMGS = [
+    "images/avatar1.png",
+    "images/avatar2.png",
+    "images/avatar3.png",
+    "images/avatar4.png"
+  ];
+  function pickAvatarIdx(label){
+    if(/刷牙|牙齒/.test(label)) return 0;
+    if(/玩具|收拾|收/.test(label)) return 1;
+    if(/飯|吃|挑食|餐/.test(label)) return 2;
+    if(/穿|衣服/.test(label)) return 3;
+    return null;
+  }
+  function taskIcon(label, idx){
+    const i = pickAvatarIdx(label);
+    const src = AVATAR_IMGS[i !== null ? i : idx % AVATAR_IMGS.length];
+    return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center;">`;
+  }
+
+  // ---- 貼紙牆：使用真實去背貓掌圖片 ----
+  const stampImages = [
+    "images/paw1.png",
+    "images/paw2.png",
+    "images/paw3.png",
+    "images/paw4.png",
+    "images/paw5.png"
+  ];
+  function stickerShape(seed){
+    const src = stampImages[seed % stampImages.length];
+    return `<img src="${src}" alt="cat paw stamp">`;
+  }
+
+  const DEFAULT_TASKS = ['自己刷牙','收玩具','吃完飯不挑食','早上自己穿衣服'];
+  const todayKey = () => new Date().toISOString().slice(0,10);
+
+  // ---- Supabase 連線 ----
+  const SUPABASE_URL = 'https://tovbtndzfipydegklfqx.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvdmJ0bmR6ZmlweWRlZ2tsZnF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NzM3NjQsImV4cCI6MjEwMzU0OTc2NH0.EI27qgYxKqA1DEOb24BhYxG7tXiaVMkF2CkWCRpxcPM';
+  const FAMILY_CODE = 'default-family';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const IDENTITY_LABELS = { dad:'👨 爸爸', mom:'👩 媽媽', child:'🧒 小朋友' };
+  const IDENTITY_TAG = { dad:{ t:'爸', c:'#5F9CD9' }, mom:{ t:'媽', c:'#FF6B5E' }, child:{ t:'寶', c:'#5FB9A0' } };
+
+  let state = {
+    kidName:'',
+    tasks: [],
+    completions:{},   // todayKey -> [taskId,...]
+    stamps: [],       // 全部蓋章紀錄 {id, task_id, stamped_by, sticker_seed, stamped_at}
+    redeemedTotal: 0, // 已兌換掉的貼紙總數
+    redemptions: [],  // 兌換紀錄 {stickers_used, redeemed_at}
+    threshold:10
+  };
+
+  function currentStickerCount(){
+    return Math.max(0, state.stamps.length - state.redeemedTotal);
+  }
+
+  const $ = id => document.getElementById(id);
+  const toastEl = $('toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(()=>toastEl.classList.remove('show'), 1600);
+  }
+
+  let dbOK = true;
+  let warnedOffline = false;
+
+  function dbError(e){
+    dbOK = false;
+    console.error(e);
+    if(!warnedOffline){
+      warnedOffline = true;
+      toast('連線失敗，請檢查網路後重新整理');
+    }
+  }
+
+  // ---- 身份選擇（存在這支裝置的 localStorage，不同步） ----
+  function getIdentity(){
+    return localStorage.getItem('sticker-wall-identity');
+  }
+  function setIdentity(id){
+    localStorage.setItem('sticker-wall-identity', id);
+    renderIdentityBadge();
+  }
+  function renderIdentityBadge(){
+    const id = getIdentity();
+    const badge = $('identityBadge');
+    if(id){
+      badge.style.display = 'flex';
+      badge.textContent = IDENTITY_LABELS[id] || id;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  function showIdentityPicker(){
+    $('identityOverlay').classList.add('show');
+  }
+  $('identityOverlay').addEventListener('click', e=>{
+    const btn = e.target.closest('.identity-btn');
+    if(!btn) return;
+    setIdentity(btn.dataset.id);
+    $('identityOverlay').classList.remove('show');
+  });
+  $('identityBadge').addEventListener('click', showIdentityPicker);
+
+  // ---- 讀取所有資料 ----
+  async function load(){
+    if(!getIdentity()) showIdentityPicker();
+    renderIdentityBadge();
+    try{
+      const [tasksRes, stampsRes, redemptionsRes, settingsRes] = await Promise.all([
+        sb.from('tasks').select('*').eq('family_code', FAMILY_CODE).eq('active', true).order('sort_order', {ascending:true}).order('created_at', {ascending:true}),
+        sb.from('stamps').select('*').eq('family_code', FAMILY_CODE).order('stamped_at', {ascending:true}),
+        sb.from('redemptions').select('stickers_used, redeemed_at').eq('family_code', FAMILY_CODE).order('redeemed_at', {ascending:false}),
+        sb.from('settings').select('*').eq('family_code', FAMILY_CODE).maybeSingle()
+      ]);
+      if(tasksRes.error) throw tasksRes.error;
+      if(stampsRes.error) throw stampsRes.error;
+      if(redemptionsRes.error) throw redemptionsRes.error;
+      if(settingsRes.error) throw settingsRes.error;
+
+      state.tasks = (tasksRes.data || []).map(t=>({id:t.id, label:t.label}));
+      state.stamps = stampsRes.data || [];
+      state.redeemedTotal = (redemptionsRes.data || []).reduce((sum,r)=>sum + (r.stickers_used||0), 0);
+      state.redemptions = redemptionsRes.data || [];
+      state.completions = {};
+      state.stamps.forEach(s=>{
+        const day = (s.stamped_at || '').slice(0,10);
+        if(!state.completions[day]) state.completions[day] = [];
+        state.completions[day].push(s.task_id);
+      });
+      if(settingsRes.data){
+        state.kidName = settingsRes.data.child_name || '';
+        state.threshold = settingsRes.data.redeem_threshold || 10;
+      }
+
+      // 如果任務是空的（第一次使用），建立預設任務
+      if(state.tasks.length === 0){
+        const inserts = DEFAULT_TASKS.map((label, idx)=>({
+          family_code: FAMILY_CODE, label, sort_order: idx
+        }));
+        const { data: created, error } = await sb.from('tasks').insert(inserts).select();
+        if(!error && created){
+          state.tasks = created.map(t=>({id:t.id, label:t.label}));
+        }
+      }
+      dbOK = true;
+    }catch(e){
+      dbError(e);
+    }
+    render();
+    subscribeRealtime();
+  }
+
+  let realtimeSubscribed = false;
+  function subscribeRealtime(){
+    if(realtimeSubscribed) return;
+    realtimeSubscribed = true;
+    sb.channel('sticker-wall-changes')
+      .on('postgres_changes', { event:'*', schema:'public', table:'tasks' }, load)
+      .on('postgres_changes', { event:'*', schema:'public', table:'stamps' }, load)
+      .on('postgres_changes', { event:'*', schema:'public', table:'redemptions' }, load)
+      .on('postgres_changes', { event:'*', schema:'public', table:'settings' }, load)
+      .subscribe();
+  }
+
+  function render(){
+    $('kidName').value = state.kidName || '';
+    $('todayBadge').textContent = todayKey();
+    $('thresholdInput').value = state.threshold;
+    $('thresholdShow').textContent = state.threshold;
+
+    const list = $('taskList');
+    list.innerHTML = '';
+    const doneToday = state.completions[todayKey()] || [];
+    state.tasks.forEach((task,idx)=>{
+      const done = doneToday.includes(task.id);
+      const row = document.createElement('div');
+      row.className = 'task';
+      row.innerHTML = `
+        <div class="task-icon">${taskIcon(task.label, idx)}</div>
+        <span class="label">${task.label}</span>
+        <button class="stamp-btn" ${done?'disabled':''} data-id="${task.id}">${done?'✓ 已蓋章':'蓋章'}</button>
+        <button class="remove-btn" data-remove="${task.id}">✕</button>
+      `;
+      list.appendChild(row);
+    });
+
+    const stickerCount = currentStickerCount();
+    $('stickerCount').textContent = stickerCount;
+    const pct = Math.min(100, Math.round((stickerCount / state.threshold) * 100));
+    $('progressFill').style.width = pct + '%';
+    const ready = stickerCount >= state.threshold;
+    $('redeemBtn').disabled = !ready;
+    $('redeemBtn').classList.toggle('ready', ready);
+
+    const grid = $('stickerGrid');
+    grid.innerHTML = '';
+    // 不限格數：只畫出已經蓋章、還沒兌換掉的貼紙，蓋越多自動往下長
+    const visibleStamps = state.stamps.slice(state.redeemedTotal);
+    visibleStamps.forEach(s=>{
+      const slot = document.createElement('div');
+      slot.className = 'sticker-slot filled';
+      const tag = IDENTITY_TAG[s.stamped_by];
+      slot.innerHTML = stickerShape(s.sticker_seed || 0)
+        + `<button class="sticker-del" data-stamp-id="${s.id}">✕</button>`
+        + (tag ? `<span class="sticker-who" style="background:${tag.c}">${tag.t}</span>` : '');
+      grid.appendChild(slot);
+    });
+    $('emptyHint').style.display = stickerCount ? 'none' : 'block';
+
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const list = $('historyList');
+    if(!state.redemptions.length){
+      list.innerHTML = '<div class="history-empty">還沒有兌換紀錄</div>';
+      return;
+    }
+    list.innerHTML = state.redemptions.map(r=>{
+      const d = r.redeemed_at ? r.redeemed_at.slice(0,10) : '';
+      return `<div class="history-row"><span class="history-date">${d}</span><span class="history-count">兌換 ${r.stickers_used} 張</span></div>`;
+    }).join('');
+  }
+
+  $('historyToggle').addEventListener('click', ()=>{
+    const body = $('historyBody');
+    const chevron = $('historyChevron');
+    const show = body.style.display === 'none';
+    body.style.display = show ? 'block' : 'none';
+    chevron.textContent = show ? '▴' : '▾';
+  });
+
+  $('saveNameBtn').addEventListener('click', async ()=>{
+    state.kidName = $('kidName').value.trim();
+    try{
+      await sb.from('settings').update({ child_name: state.kidName, updated_at: new Date().toISOString() }).eq('family_code', FAMILY_CODE);
+      toast('已儲存');
+    }catch(e){ dbError(e); }
+  });
+
+  $('addTaskBtn').addEventListener('click', async ()=>{
+    const val = $('newTaskInput').value.trim();
+    if(!val) return;
+    $('newTaskInput').value = '';
+    try{
+      const { data, error } = await sb.from('tasks').insert({
+        family_code: FAMILY_CODE, label: val, sort_order: state.tasks.length
+      }).select().single();
+      if(error) throw error;
+      state.tasks.push({id:data.id, label:data.label});
+      render();
+    }catch(e){ dbError(e); }
+  });
+  $('newTaskInput').addEventListener('keydown', e=>{
+    if(e.key === 'Enter') $('addTaskBtn').click();
+  });
+
+  async function completeStamp(taskId){
+    const key = todayKey();
+    if(!state.completions[key]) state.completions[key] = [];
+    if(state.completions[key].includes(taskId)) return;
+    const identity = getIdentity() || 'child';
+    const seed = Math.floor(Math.random()*1000);
+    try{
+      const { data, error } = await sb.from('stamps').insert({
+        family_code: FAMILY_CODE, task_id: taskId, stamped_by: identity, sticker_seed: seed
+      }).select().single();
+      if(error) throw error;
+      state.completions[key].push(taskId);
+      state.stamps.push(data);
+      render();
+    }catch(e){ dbError(e); }
+  }
+
+  $('taskList').addEventListener('click', async e=>{
+    const stampId = e.target.dataset.id;
+    const removeId = e.target.dataset.remove;
+    if(stampId){
+      openStampOverlay(stampId);
+    }
+    if(removeId){
+      try{
+        const { error } = await sb.from('tasks').update({ active:false }).eq('id', removeId);
+        if(error) throw error;
+        state.tasks = state.tasks.filter(t=>t.id !== removeId);
+        render();
+      }catch(e){ dbError(e); }
+    }
+  });
+
+  // ---- 按住蓋章儀式 ----
+  const HOLD_MS = 1500;
+  const PAD_TOP = 6;
+  const PAD_BOTTOM = 258;
+  const PAD_FULL_H = PAD_BOTTOM - PAD_TOP;
+  let pendingTaskId = null;
+  let holdRAF = null;
+  let holdStart = null;
+
+  const overlay = $('stampOverlay');
+  const inkRect = $('inkFillRect');
+  const stampPadWrap = $('stampPadWrap');
+  const stampPad = $('stampPad');
+  const stampBadge = $('stampBadge');
+  const stampImpact = $('stampImpact');
+  const stampCard = $('stampCard');
+  const rippleRing = $('rippleRing');
+  stampBadge.src = "images/cat-stamp-badge.png";
+  const stampHint = $('stampHint');
+  const scanText = $('scanText');
+
+  function openStampOverlay(taskId){
+    pendingTaskId = taskId;
+    resetInk();
+    stampHint.textContent = '按住指紋不放';
+    overlay.classList.add('show');
+  }
+  function closeStampOverlay(){
+    overlay.classList.remove('show');
+    pendingTaskId = null;
+    cancelHold();
+  }
+  function resetInk(){
+    inkRect.setAttribute('y', PAD_BOTTOM);
+    inkRect.setAttribute('height', 0);
+  }
+  function setInk(progress){
+    const h = progress * PAD_FULL_H;
+    inkRect.setAttribute('y', PAD_BOTTOM - h);
+    inkRect.setAttribute('height', h);
+  }
+  function cancelHold(){
+    if(holdRAF) cancelAnimationFrame(holdRAF);
+    holdRAF = null; holdStart = null;
+    resetInk();
+    stampPad.classList.remove('pressing');
+    stampPadWrap.classList.remove('pressing');
+    scanText.classList.remove('active');
+    stampBadge.classList.remove('show');
+    stampImpact.classList.remove('show');
+    rippleRing.classList.remove('show');
+    stampCard.classList.remove('shake');
+    stampPadWrap.classList.remove('landed');
+    stampHint.textContent = '按住指紋不放';
+  }
+  function startHold(){
+    if(!pendingTaskId) return;
+    stampPad.classList.add('pressing');
+    stampPadWrap.classList.add('pressing');
+    scanText.classList.add('active');
+    stampHint.textContent = '別放開⋯';
+    holdStart = performance.now();
+    const tick = (now)=>{
+      const progress = Math.min(1, (now - holdStart) / HOLD_MS);
+      setInk(progress);
+      if(progress >= 1){
+        finishStamp();
+        return;
+      }
+      holdRAF = requestAnimationFrame(tick);
+    };
+    holdRAF = requestAnimationFrame(tick);
+  }
+  function finishStamp(){
+    if(holdRAF) cancelAnimationFrame(holdRAF);
+    holdRAF = null;
+    stampPad.classList.remove('pressing');
+    stampPadWrap.classList.remove('pressing');
+    stampPad.classList.add('done');
+    scanText.classList.remove('active');
+    stampBadge.classList.add('show');
+    stampImpact.classList.add('show');
+    rippleRing.classList.add('show');
+    stampCard.classList.add('shake');
+    stampPadWrap.classList.add('landed');
+    stampHint.textContent = '蓋好了！🎉';
+    const id = pendingTaskId;
+    setTimeout(()=>{
+      completeStamp(id);
+      stampPad.classList.remove('done');
+      closeStampOverlay();
+      toast('蓋章成功！🎉');
+    }, 1700);
+  }
+
+  stampPad.addEventListener('pointerdown', e=>{ e.preventDefault(); startHold(); });
+  stampPad.addEventListener('pointerup', cancelHold);
+  stampPad.addEventListener('pointerleave', cancelHold);
+  stampPad.addEventListener('pointercancel', cancelHold);
+  $('stampOverlayClose').addEventListener('click', closeStampOverlay);
+  overlay.addEventListener('click', e=>{ if(e.target === overlay) closeStampOverlay(); });
+
+  $('thresholdInput').addEventListener('change', async e=>{
+    const v = parseInt(e.target.value,10);
+    state.threshold = (v && v>0) ? v : 10;
+    render();
+    try{
+      await sb.from('settings').update({ redeem_threshold: state.threshold, updated_at: new Date().toISOString() }).eq('family_code', FAMILY_CODE);
+    }catch(e){ dbError(e); }
+  });
+
+  $('stickerGrid').addEventListener('click', async e=>{
+    const btn = e.target.closest('.sticker-del');
+    if(!btn) return;
+    const stampId = btn.dataset.stampId;
+    if(!confirm('要移除這張貼紙嗎？')) return;
+    try{
+      const { error } = await sb.from('stamps').delete().eq('id', stampId);
+      if(error) throw error;
+      state.stamps = state.stamps.filter(s=>s.id !== stampId);
+      render();
+      toast('已移除一張貼紙');
+    }catch(e){ dbError(e); }
+  });
+
+  $('redeemBtn').addEventListener('click', async ()=>{
+    const count = currentStickerCount();
+    if(count < state.threshold) return;
+    try{
+      const { data, error } = await sb.from('redemptions').insert({
+        family_code: FAMILY_CODE, stickers_used: state.threshold
+      }).select().single();
+      if(error) throw error;
+      state.redeemedTotal += state.threshold;
+      state.redemptions.unshift(data);
+      render();
+      toast('兌換成功！記得給孩子獎勵 🎁');
+    }catch(e){ dbError(e); }
+  });
+
+  $('exportBtn').addEventListener('click', async ()=>{
+    try{
+      const [t,s,r,st] = await Promise.all([
+        sb.from('tasks').select('*').eq('family_code', FAMILY_CODE),
+        sb.from('stamps').select('*').eq('family_code', FAMILY_CODE),
+        sb.from('redemptions').select('*').eq('family_code', FAMILY_CODE),
+        sb.from('settings').select('*').eq('family_code', FAMILY_CODE)
+      ]);
+      const backup = {
+        exported_at: new Date().toISOString(),
+        tasks: t.data, stamps: s.data, redemptions: r.data, settings: st.data
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `貼紙牆備份_${todayKey()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('備份已下載');
+    }catch(e){ dbError(e); }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "怪獸貼紙牆",
+  "short_name": "貼紙牆",
+  "description": "完成任務，蓋一枚屬於今天的印記",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FDF6EA",
+  "theme_color": "#191A2E",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "images/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "images/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
