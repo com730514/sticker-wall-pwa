@@ -598,11 +598,17 @@
 
   function dbError(e){
     dbOK = false;
-    console.error(e);
-    if(!warnedOffline){
-      warnedOffline = true;
-      toast('連線失敗，請檢查網路後重新整理');
+    console.error('[貼紙牆資料庫錯誤]', e);
+    const message = [e?.code, e?.message || String(e), e?.details].filter(Boolean).join('：');
+    let panel = document.getElementById('dbErrorPanel');
+    if(!panel){
+      panel = document.createElement('div');
+      panel.id = 'dbErrorPanel';
+      panel.setAttribute('role','alert');
+      panel.style.cssText = 'position:fixed;bottom:16px;left:12px;right:12px;z-index:99999;background:#fff2ec;border:2px solid #d45b40;border-radius:16px;padding:14px;color:#40271c;font-size:14px;line-height:1.5;box-shadow:0 4px 20px #0003;max-height:45vh;overflow:auto;white-space:pre-wrap';
+      document.body.appendChild(panel);
     }
+    panel.textContent = '雲端儲存沒有成功，資料未新增。\\n錯誤原因：' + message + '\\n請截圖這個訊息，以便修正雲端設定。';
   }
 
   // ---- 身份選擇（存在這支裝置的 localStorage，不同步） ----
@@ -774,15 +780,26 @@
   $('addTaskBtn').addEventListener('click', async ()=>{
     const val = $('newTaskInput').value.trim();
     if(!val) return;
-    $('newTaskInput').value = '';
+    const addButton = $('addTaskBtn');
+    addButton.disabled = true;
+    addButton.textContent = '儲存中…';
     try{
       const { data, error } = await sb.from('tasks').insert({
         family_code: FAMILY_CODE, label: val, sort_order: state.tasks.length
       }).select().single();
       if(error) throw error;
+      if(!data?.id) throw new Error('伺服器未回傳新任務');
+      $('newTaskInput').value = '';
       state.tasks.push({id:data.id, label:data.label});
+      const panel = document.getElementById('dbErrorPanel');
+      if(panel) panel.remove();
       render();
+      toast('任務新增成功');
     }catch(e){ dbError(e); }
+    finally{
+      addButton.disabled = false;
+      addButton.textContent = '新增';
+    }
   });
   $('newTaskInput').addEventListener('keydown', e=>{
     if(e.key === 'Enter') $('addTaskBtn').click();
