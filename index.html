@@ -560,7 +560,48 @@
   }
 
   const DEFAULT_TASKS = ['自己刷牙','收玩具','吃完飯不挑食','早上自己穿衣服'];
-  const todayKey = () => new Date().toISOString().slice(0,10);
+  // All calendar days use Taiwan time; database timestamps remain unchanged.
+  const taipeiDateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+  function taipeiDateKey(value = new Date()){
+    if(value == null || value === '') return '';
+    const date = value instanceof Date ? value : new Date(value);
+    if(Number.isNaN(date.getTime())) return '';
+    const parts = taipeiDateFormatter.formatToParts(date);
+    const part = type => parts.find(p => p.type === type).value;
+    return `${part('year')}-${part('month')}-${part('day')}`;
+  }
+  const todayKey = () => taipeiDateKey();
+  let renderedDay = '';
+  let dayChangeTimer;
+
+  function rebuildCompletions(){
+    state.completions = {};
+    state.stamps.forEach(s => {
+      const day = taipeiDateKey(s.stamped_at);
+      if(!day) return;
+      if(!state.completions[day]) state.completions[day] = [];
+      state.completions[day].push(s.task_id);
+    });
+  }
+
+  function refreshCalendarDay(){
+    if(renderedDay !== todayKey()){
+      // Preserve unsaved form input when the calendar rolls over.
+      const nameDraft = $('kidName').value;
+      const thresholdDraft = $('thresholdInput').value;
+      render();
+      $('kidName').value = nameDraft;
+      $('thresholdInput').value = thresholdDraft;
+    }
+    clearTimeout(dayChangeTimer);
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const taipeiOffsetMs = 8 * 60 * 60 * 1000;
+    dayChangeTimer = setTimeout(refreshCalendarDay,
+      dayMs - ((now + taipeiOffsetMs) % dayMs) + 50);
+  }
 
   // ---- Supabase 連線 ----
   const SUPABASE_URL = 'https://tovbtndzfipydegklfqx.supabase.co';
@@ -660,12 +701,7 @@
       state.stamps = stampsRes.data || [];
       state.redeemedTotal = (redemptionsRes.data || []).reduce((sum,r)=>sum + (r.stickers_used||0), 0);
       state.redemptions = redemptionsRes.data || [];
-      state.completions = {};
-      state.stamps.forEach(s=>{
-        const day = (s.stamped_at || '').slice(0,10);
-        if(!state.completions[day]) state.completions[day] = [];
-        state.completions[day].push(s.task_id);
-      });
+      rebuildCompletions();
       if(settingsRes.data){
         state.kidName = settingsRes.data.child_name || '';
         state.threshold = settingsRes.data.redeem_threshold || 10;
@@ -702,14 +738,16 @@
   }
 
   function render(){
+    rebuildCompletions();
+    renderedDay = todayKey();
     $('kidName').value = state.kidName || '';
-    $('todayBadge').textContent = todayKey();
+    $('todayBadge').textContent = renderedDay;
     $('thresholdInput').value = state.threshold;
     $('thresholdShow').textContent = state.threshold;
 
     const list = $('taskList');
     list.innerHTML = '';
-    const doneToday = state.completions[todayKey()] || [];
+    const doneToday = state.completions[renderedDay] || [];
     state.tasks.forEach((task,idx)=>{
       const done = doneToday.includes(task.id);
       const row = document.createElement('div');
@@ -756,7 +794,7 @@
       return;
     }
     list.innerHTML = state.redemptions.map(r=>{
-      const d = r.redeemed_at ? r.redeemed_at.slice(0,10) : '';
+      const d = taipeiDateKey(r.redeemed_at);
       return `<div class="history-row"><span class="history-date">${d}</span><span class="history-count">兌換 ${r.stickers_used} 張</span></div>`;
     }).join('');
   }
@@ -806,6 +844,7 @@
   });
 
   async function completeStamp(taskId){
+    rebuildCompletions();
     const key = todayKey();
     if(!state.completions[key]) state.completions[key] = [];
     if(state.completions[key].includes(taskId)) return;
@@ -816,8 +855,7 @@
         family_code: FAMILY_CODE, task_id: taskId, stamped_by: identity, sticker_seed: seed
       }).select().single();
       if(error) throw error;
-      state.completions[key].push(taskId);
-      state.stamps.push(data);
+      if(!state.stamps.some(s => s.id === data.id)) state.stamps.push(data);
       render();
     }catch(e){ dbError(e); }
   }
@@ -1001,6 +1039,12 @@
     }catch(e){ dbError(e); }
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') refreshCalendarDay();
+  });
+  window.addEventListener('focus', refreshCalendarDay);
+  window.addEventListener('pageshow', refreshCalendarDay);
+  refreshCalendarDay();
   load();
 })();
 </script>
