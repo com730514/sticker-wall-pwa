@@ -598,7 +598,7 @@
   function rebuildCompletions(){
     state.completions = {};
     state.stamps.forEach(s => {
-      const day = taipeiDateKey(s.stamped_at);
+      const day = taipeiDateKey(s.stamped_at ?? null);
       if(!day) return;
       if(!state.completions[day]) state.completions[day] = [];
       state.completions[day].push(s.task_id);
@@ -803,7 +803,7 @@
       const view = document.createElement('button');
       view.type = 'button';
       view.className = 'sticker-view';
-      const day = taipeiDateKey(s.stamped_at);
+      const day = taipeiDateKey(s.stamped_at ?? null);
       view.setAttribute('aria-label', '查看蓋章紀錄：' + (day || '日期未記錄'));
       view.innerHTML = stickerShape(s.sticker_seed || 0);
       view.addEventListener('click', ()=>showStampDetails(s));
@@ -837,7 +837,7 @@
   function showStampDetails(stamp){
     const task = state.allTasks.find(t=>t.id === stamp.task_id);
     $('stampReason').textContent = task?.label || '原任務資料已不存在';
-    $('stampDate').textContent = taipeiDateKey(stamp.stamped_at).replaceAll('-', '／') || '未記錄';
+    $('stampDate').textContent = taipeiDateKey(stamp.stamped_at ?? null).replaceAll('-', '／') || '未記錄';
     $('stampWho').textContent = IDENTITY_LABELS[stamp.stamped_by] || '未記錄';
     $('stampDetails').showModal();
   }
