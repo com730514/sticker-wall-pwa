@@ -375,6 +375,8 @@
   .stamp-details dt{color:#776F61;}
   .stamp-details dd{margin:0;font-weight:700;overflow-wrap:anywhere;}
   .stamp-details button{width:100%;margin-top:24px;border:0;border-radius:14px;padding:13px;background:var(--peach);color:var(--navy);font:700 14px inherit;cursor:pointer;}
+  .stamp-details .stamp-delete{margin-top:14px;background:transparent;color:#A43D32;border:1px solid #DFC5BE;font-size:13px;min-height:44px;}
+  .stamp-details .stamp-delete:disabled{opacity:.5;cursor:wait;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -487,6 +489,7 @@
   <h2 id="stampDetailsTitle">🐾 蓋章紀錄</h2>
   <dl><dt>蓋章原因</dt><dd id="stampReason"></dd><dt>日期</dt><dd id="stampDate"></dd><dt>蓋章者</dt><dd id="stampWho"></dd></dl>
   <form method="dialog"><button autofocus>關閉</button></form>
+  <button type="button" class="stamp-delete" id="deleteStampBtn">刪除這枚章</button>
 </dialog>
 <div class="toast" id="toast"></div>
 
@@ -808,12 +811,6 @@
       view.innerHTML = stickerShape(s.sticker_seed || 0);
       view.addEventListener('click', ()=>showStampDetails(s));
       slot.appendChild(view);
-      const del = document.createElement('button');
-      del.className = 'sticker-del';
-      del.dataset.stampId = s.id;
-      del.textContent = '✕';
-      del.setAttribute('aria-label', '移除這張貼紙');
-      slot.appendChild(del);
       const tag = IDENTITY_TAG[s.stamped_by];
       if(tag){
         const who = document.createElement('span');
@@ -834,7 +831,10 @@
     renderHistory();
   }
 
+  let selectedStampId = null;
+  let deletingStamp = false;
   function showStampDetails(stamp){
+    selectedStampId = stamp.id;
     const task = state.allTasks.find(t=>t.id === stamp.task_id);
     $('stampReason').textContent = task?.label || '原任務資料已不存在';
     $('stampDate').textContent = taipeiDateKey(stamp.stamped_at ?? null).replaceAll('-', '／') || '未記錄';
@@ -1048,18 +1048,29 @@
     }catch(e){ dbError(e); }
   });
 
-  $('stickerGrid').addEventListener('click', async e=>{
-    const btn = e.target.closest('.sticker-del');
-    if(!btn) return;
-    const stampId = btn.dataset.stampId;
-    if(!confirm('要移除這張貼紙嗎？')) return;
+  $('stampDetails').addEventListener('close', ()=>{ selectedStampId = null; });
+  $('deleteStampBtn').addEventListener('click', async ()=>{
+    const stampId = selectedStampId;
+    if(!stampId || deletingStamp) return;
+    if(!confirm('確定要刪除這枚章嗎？刪除後會扣除 1 張貼紙，且無法復原。')) return;
+    deletingStamp = true;
+    const btn = $('deleteStampBtn');
+    btn.disabled = true;
+    btn.textContent = '刪除中…';
     try{
-      const { error } = await sb.from('stamps').delete().eq('id', stampId);
+      const { error } = await sb.from('stamps').delete().eq('id', stampId).eq('family_code', FAMILY_CODE);
       if(error) throw error;
       state.stamps = state.stamps.filter(s=>s.id !== stampId);
+      if(selectedStampId === stampId) $('stampDetails').close();
       render();
-      toast('已移除一張貼紙');
-    }catch(e){ dbError(e); }
+      toast('已刪除一枚章');
+    }catch(e){
+      alert('刪除失敗，請稍後再試。');
+    }finally{
+      deletingStamp = false;
+      btn.disabled = false;
+      btn.textContent = '刪除這枚章';
+    }
   });
 
   $('redeemBtn').addEventListener('click', async ()=>{
