@@ -361,6 +361,20 @@
 }
 .sticker-grid.unlimited{ display:flex; flex-wrap:wrap; gap:9px; }
 .sticker-grid.unlimited .sticker-slot{ width:calc(20% - 7.2px); aspect-ratio:1; }
+
+  .sticker-item{min-width:0;text-align:center;}
+  .sticker-grid.unlimited .sticker-item{width:calc(20% - 7.2px);}
+  .sticker-grid.unlimited .sticker-item .sticker-slot{width:100%;}
+  .sticker-view{position:absolute;inset:0;width:100%;border:0;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:14px;}
+  .sticker-view:focus-visible{outline:3px solid var(--purple);outline-offset:-4px;}
+  .sticker-date{display:block;font-size:10px;color:#776F61;margin-top:5px;line-height:1.4;}
+  .stamp-details{margin:auto;width:calc(100% - 36px);max-width:360px;border:0;border-radius:24px;padding:26px;background:var(--cream);color:var(--navy);box-shadow:0 16px 60px #191a2e40;}
+  .stamp-details::backdrop{background:#191a2e99;}
+  .stamp-details h2{font-size:21px;margin-bottom:20px;}
+  .stamp-details dl{display:grid;grid-template-columns:72px 1fr;gap:14px 10px;font-size:14px;line-height:1.6;}
+  .stamp-details dt{color:#776F61;}
+  .stamp-details dd{margin:0;font-weight:700;overflow-wrap:anywhere;}
+  .stamp-details button{width:100%;margin-top:24px;border:0;border-radius:14px;padding:13px;background:var(--peach);color:var(--navy);font:700 14px inherit;cursor:pointer;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -469,6 +483,11 @@
   <button class="export-link" id="exportBtn">⬇ 匯出資料備份</button>
 </div>
 
+<dialog class="stamp-details" id="stampDetails" aria-labelledby="stampDetailsTitle">
+  <h2 id="stampDetailsTitle">🐾 蓋章紀錄</h2>
+  <dl><dt>蓋章原因</dt><dd id="stampReason"></dd><dt>日期</dt><dd id="stampDate"></dd><dt>蓋章者</dt><dd id="stampWho"></dd></dl>
+  <form method="dialog"><button autofocus>關閉</button></form>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <div class="stamp-overlay" id="stampOverlay">
@@ -615,6 +634,7 @@
   let state = {
     kidName:'',
     tasks: [],
+    allTasks: [],
     completions:{},   // todayKey -> [taskId,...]
     stamps: [],       // 全部蓋章紀錄 {id, task_id, stamped_by, sticker_seed, stamped_at}
     redeemedTotal: 0, // 已兌換掉的貼紙總數
@@ -687,7 +707,7 @@
     renderIdentityBadge();
     try{
       const [tasksRes, stampsRes, redemptionsRes, settingsRes] = await Promise.all([
-        sb.from('tasks').select('*').eq('family_code', FAMILY_CODE).eq('active', true).order('sort_order', {ascending:true}).order('created_at', {ascending:true}),
+        sb.from('tasks').select('*').eq('family_code', FAMILY_CODE).order('sort_order', {ascending:true}).order('created_at', {ascending:true}),
         sb.from('stamps').select('*').eq('family_code', FAMILY_CODE).order('stamped_at', {ascending:true}),
         sb.from('redemptions').select('stickers_used, redeemed_at').eq('family_code', FAMILY_CODE).order('redeemed_at', {ascending:false}),
         sb.from('settings').select('*').eq('family_code', FAMILY_CODE).maybeSingle()
@@ -697,7 +717,8 @@
       if(redemptionsRes.error) throw redemptionsRes.error;
       if(settingsRes.error) throw settingsRes.error;
 
-      state.tasks = (tasksRes.data || []).map(t=>({id:t.id, label:t.label}));
+      state.allTasks = tasksRes.data || [];
+      state.tasks = state.allTasks.filter(t=>t.active === true).map(t=>({id:t.id, label:t.label}));
       state.stamps = stampsRes.data || [];
       state.redeemedTotal = (redemptionsRes.data || []).reduce((sum,r)=>sum + (r.stickers_used||0), 0);
       state.redemptions = redemptionsRes.data || [];
@@ -714,6 +735,7 @@
         }));
         const { data: created, error } = await sb.from('tasks').insert(inserts).select();
         if(!error && created){
+          state.allTasks.push(...created);
           state.tasks = created.map(t=>({id:t.id, label:t.label}));
         }
       }
@@ -774,18 +796,56 @@
     // 不限格數：只畫出已經蓋章、還沒兌換掉的貼紙，蓋越多自動往下長
     const visibleStamps = state.stamps.slice(state.redeemedTotal);
     visibleStamps.forEach(s=>{
+      const item = document.createElement('div');
+      item.className = 'sticker-item';
       const slot = document.createElement('div');
       slot.className = 'sticker-slot filled';
+      const view = document.createElement('button');
+      view.type = 'button';
+      view.className = 'sticker-view';
+      const day = taipeiDateKey(s.stamped_at);
+      view.setAttribute('aria-label', '查看蓋章紀錄：' + (day || '日期未記錄'));
+      view.innerHTML = stickerShape(s.sticker_seed || 0);
+      view.addEventListener('click', ()=>showStampDetails(s));
+      slot.appendChild(view);
+      const del = document.createElement('button');
+      del.className = 'sticker-del';
+      del.dataset.stampId = s.id;
+      del.textContent = '✕';
+      del.setAttribute('aria-label', '移除這張貼紙');
+      slot.appendChild(del);
       const tag = IDENTITY_TAG[s.stamped_by];
-      slot.innerHTML = stickerShape(s.sticker_seed || 0)
-        + `<button class="sticker-del" data-stamp-id="${s.id}">✕</button>`
-        + (tag ? `<span class="sticker-who" style="background:${tag.c}">${tag.t}</span>` : '');
-      grid.appendChild(slot);
+      if(tag){
+        const who = document.createElement('span');
+        who.className = 'sticker-who';
+        who.style.background = tag.c;
+        who.style.pointerEvents = 'none';
+        who.textContent = tag.t;
+        slot.appendChild(who);
+      }
+      const date = document.createElement('span');
+      date.className = 'sticker-date';
+      date.textContent = day ? day.slice(5).replace('-', '/') : '未記錄';
+      item.append(slot, date);
+      grid.appendChild(item);
     });
     $('emptyHint').style.display = stickerCount ? 'none' : 'block';
 
     renderHistory();
   }
+
+  function showStampDetails(stamp){
+    const task = state.allTasks.find(t=>t.id === stamp.task_id);
+    $('stampReason').textContent = task?.label || '原任務資料已不存在';
+    $('stampDate').textContent = taipeiDateKey(stamp.stamped_at).replaceAll('-', '／') || '未記錄';
+    $('stampWho').textContent = IDENTITY_LABELS[stamp.stamped_by] || '未記錄';
+    $('stampDetails').showModal();
+  }
+  $('stampDetails').addEventListener('click', e=>{
+    if(e.target !== $('stampDetails')) return;
+    const rect = e.target.getBoundingClientRect();
+    if(e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) e.target.close();
+  });
 
   function renderHistory(){
     const list = $('historyList');
@@ -828,6 +888,7 @@
       if(error) throw error;
       if(!data?.id) throw new Error('伺服器未回傳新任務');
       $('newTaskInput').value = '';
+      state.allTasks.push(data);
       state.tasks.push({id:data.id, label:data.label});
       const panel = document.getElementById('dbErrorPanel');
       if(panel) panel.remove();
